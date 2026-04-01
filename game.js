@@ -1257,16 +1257,21 @@
 
   const beep = (freq = 440, len = 0.08, type = 'sine', vol = 0.02) => {
     try {
-      const ctx = beep.ctx || (beep.ctx = new (window.AudioContext || window.webkitAudioContext)());
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = beep.ctx || (beep.ctx = new Ctx());
+      if (ctx.state === 'suspended') ctx.resume();
+      const now = ctx.currentTime;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = type;
-      osc.frequency.value = freq;
-      gain.gain.value = vol;
+      osc.frequency.setValueAtTime(freq, now);
+      gain.gain.setValueAtTime(vol, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + len);
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + len);
+      osc.start(now);
+      osc.stop(now + len);
     } catch {}
   };
 
@@ -1419,6 +1424,11 @@
   }
 
   let activeTabSince = Date.now();
+  let listPointerActive = false;
+
+  window.addEventListener('pointerdown', () => { listPointerActive = true; }, true);
+  window.addEventListener('pointerup', () => { listPointerActive = false; renderList(); }, true);
+  window.addEventListener('pointercancel', () => { listPointerActive = false; renderList(); }, true);
 
   function setTab(tab) {
     const now = Date.now();
@@ -1768,7 +1778,7 @@
     checkAchievements();
     renderStats();
     renderProductionScene();
-    renderList();
+    if (!listPointerActive) renderList();
     renderLog();
   }
 
