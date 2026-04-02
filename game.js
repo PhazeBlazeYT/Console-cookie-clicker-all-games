@@ -1997,11 +1997,11 @@
     renderAll();
   };
 
-  els.tabShop.onclick = () => setTab('shop');
-  els.tabUpgrades.onclick = () => setTab('upgrades');
-  els.tabPrestige.onclick = () => setTab('prestige');
-  els.tabAchievements.onclick = () => setTab('achievements');
-  els.tabStats.onclick = () => setTab('stats');
+  els.tabShop.onclick = () => { stopTdMode(); setTab('shop'); };
+  els.tabUpgrades.onclick = () => { stopTdMode(); setTab('upgrades'); };
+  els.tabPrestige.onclick = () => { stopTdMode(); setTab('prestige'); };
+  els.tabAchievements.onclick = () => { stopTdMode(); setTab('achievements'); };
+  els.tabStats.onclick = () => { stopTdMode(); setTab('stats'); };
 
   els.buy1.onclick = () => { state.buyAmount = 1; renderAll(); };
   els.buy10.onclick = () => { state.buyAmount = 10; renderAll(); };
