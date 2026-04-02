@@ -166,17 +166,31 @@
   ];
 
   const fmt = (n) => {
-    const value = Math.floor(Number(n) || 0);
+    const value = Number(n);
+    if (!Number.isFinite(value)) return '0';
     const sign = value < 0 ? '-' : '';
     const abs = Math.abs(value);
-    if (abs < 1000) return `${sign}${abs.toLocaleString()}`;
+    if (abs < 1000) return `${sign}${Math.floor(abs).toLocaleString()}`;
 
-    const units = ['', 'k', 'm', 'b', 't', 'q', 'qi', 'sx', 'sp', 'oc', 'no', 'dc'];
-    const tier = Math.min(units.length - 1, Math.floor(Math.log10(abs) / 3));
-    const scaled = abs / (1000 ** tier);
-    const decimals = scaled >= 100 ? 0 : scaled >= 10 ? 1 : 2;
-    const text = scaled.toFixed(decimals).replace(/\.0+$|(?<=\.\d)0+$/g, '');
-    return `${sign}${text}${units[tier]}`;
+    const exponent = Math.floor(Math.log10(abs));
+    const mantissa = abs / (10 ** exponent);
+    const decimals = mantissa >= 100 ? 0 : mantissa >= 10 ? 1 : 2;
+    const text = mantissa.toFixed(decimals).replace(/\.0+$|(?<=\.\d)0+$/g, '');
+    return `${sign}${text}×10^${exponent}`;
+  };
+
+  const fmtFloat = (n, precision = 1) => {
+    const value = Number(n);
+    if (!Number.isFinite(value)) return '0';
+    const sign = value < 0 ? '-' : '';
+    const abs = Math.abs(value);
+    if (abs < 1000) return `${sign}${abs.toLocaleString(undefined, { maximumFractionDigits: precision })}`;
+
+    const exponent = Math.floor(Math.log10(abs));
+    const mantissa = abs / (10 ** exponent);
+    const decimals = mantissa >= 100 ? 0 : mantissa >= 10 ? 1 : 2;
+    const text = mantissa.toFixed(decimals).replace(/\.0+$|(?<=\.\d)0+$/g, '');
+    return `${sign}${text}×10^${exponent}`;
   };
   const formatDuration = (seconds) => {
     const safe = Math.max(0, Math.floor(Number(seconds) || 0));
@@ -405,7 +419,7 @@
     #${ROOT_ID} .cc-grandma-badge { margin-bottom:8px; font-size:28px; filter:drop-shadow(0 2px 3px #0008); }
     #${ROOT_ID} .cc-lace { width:100%; height:8px; margin-bottom:8px; background:repeating-linear-gradient(90deg,#f6e7cf 0 10px,#e5cfad 10px 20px); box-shadow:0 1px 0 #0005; border-radius:4px; }
     #${ROOT_ID} .cc-news { width:100%; margin-bottom:10px; padding:6px; border:1px solid #0008; background:linear-gradient(180deg,#3a2a18,#22170f); color:#f3d39b; font-size:13px; text-align:center; border-radius:8px; box-shadow: inset 0 1px 0 #fff2, 0 4px 10px #0005; animation: cc-news-glow 3s ease-in-out infinite; }
-    #${ROOT_ID} .cc-cookie-count { font-size:44px; color:#ffd37e; text-align:center; }
+    #${ROOT_ID} .cc-cookie-count { font-size:clamp(24px,3.2vw,44px); color:#ffd37e; text-align:center; line-height:1.15; max-width:100%; padding:0 10px; overflow-wrap:anywhere; word-break:break-word; }
     #${ROOT_ID} .cc-cps { font-size:20px; color:#e9d5ae; margin-bottom:8px; }
     #${ROOT_ID} .cc-playtime { font-size:15px; color:#d9c8a8; margin-bottom:8px; text-align:center; }
     #${ROOT_ID} .cc-cookie { width:320px; height:320px; border-radius:50%; border:3px solid #5a3116; cursor:pointer;
@@ -1383,7 +1397,7 @@
     els.cookieCount.textContent = `${fmt(state.cookies)} cookies`;
     const cpsNow = activeCps();
     state.highestCpsEver = Math.max(state.highestCpsEver, cpsNow);
-    els.cps.textContent = `per second: ${cpsNow.toLocaleString(undefined, { maximumFractionDigits: 1 })}`;
+    els.cps.textContent = `per second: ${fmtFloat(cpsNow, 1)}`;
     els.playtime.textContent = `Time played: ${formatDuration(state.totalPlaySeconds)}`;
     const gain = prestigeGain();
     const need = prestigeNeedForNext();
@@ -1396,7 +1410,7 @@
       `Clicks: <b>${fmt(state.totalClicks)}</b> | Golden clicks: <b>${fmt(state.goldenClicks)}</b> / spawns: <b>${fmt(state.goldenSpawns)}</b> / missed: <b>${fmt(state.goldenMisses)}</b> | Achievements: <b>${state.achievements.length}/${achievementDefs.length}</b><br>` +
       `Golden spawn boost: <b>x${goldenSpawnBoost().toFixed(2)}</b> | Golden power: <b>x${goldenEffectBoost().toFixed(2)}</b><br>` +
       `Hand-made: <b>${fmt(state.handMadeCookies)}</b> | Highest bank: <b>${fmt(state.highestCookies)}</b><br>` +
-      `Highest CpS: <b>${state.highestCpsEver.toLocaleString(undefined, { maximumFractionDigits: 1 })}</b> | Click speed: <b>${clickSpeed.toFixed(1)}/s</b> | Time played: <b>${formatDuration(state.totalPlaySeconds)}</b>`
+      `Highest CpS: <b>${fmtFloat(state.highestCpsEver, 1)}</b> | Click speed: <b>${clickSpeed.toFixed(1)}/s</b> | Time played: <b>${formatDuration(state.totalPlaySeconds)}</b>`
     );
 
     const buffs = [];
@@ -1524,7 +1538,7 @@
       const affordable = state.buyMode === 'buy' ? tradeCount > 0 : maxSell > 0;
       const btn = document.createElement('button');
       btn.className = `cc-card ${affordable ? 'can-buy' : ''}`;
-      btn.innerHTML = policy.createHTML(`<b><span class="cc-img3d">${buildingIcon(b.name)}</span> ${b.name}</b> (${b.owned})<br>${state.buyMode === 'buy' ? `Buy ${tradeCount} — Cost: ${fmt(price)} | +${(b.cps * tradeCount).toLocaleString()}/s` : `Sell ${tradeCount} — Gain: ${fmt(price)} | -${(b.cps * tradeCount).toLocaleString()}/s`}`);
+      btn.innerHTML = policy.createHTML(`<b><span class="cc-img3d">${buildingIcon(b.name)}</span> ${b.name}</b> (${b.owned})<br>${state.buyMode === 'buy' ? `Buy ${tradeCount} — Cost: ${fmt(price)} | +${fmtFloat(b.cps * tradeCount, 1)}/s` : `Sell ${tradeCount} — Gain: ${fmt(price)} | -${fmtFloat(b.cps * tradeCount, 1)}/s`}`);
       bindPress(btn, () => {
         if (state.buyMode === 'buy') {
           if (tradeCount <= 0 || state.cookies < price) return;
@@ -1770,9 +1784,9 @@
       `Cookies in bank: <b>${fmt(state.cookies)}</b><br>` +
       `Total baked (lifetime): <b>${fmt(state.totalCookiesBaked)}</b><br>` +
       `Hand-made cookies: <b>${fmt(state.handMadeCookies)}</b><br>` +
-      `Current CpS: <b>${activeCps().toLocaleString(undefined, { maximumFractionDigits: 1 })}</b><br>` +
-      `Highest CpS reached: <b>${state.highestCpsEver.toLocaleString(undefined, { maximumFractionDigits: 1 })}</b><br>` +
-      `Average cookies per click: <b>${avgClick.toLocaleString(undefined, { maximumFractionDigits: 1 })}</b><br>` +
+      `Current CpS: <b>${fmtFloat(activeCps(), 1)}</b><br>` +
+      `Highest CpS reached: <b>${fmtFloat(state.highestCpsEver, 1)}</b><br>` +
+      `Average cookies per click: <b>${fmtFloat(avgClick, 1)}</b><br>` +
       `Play efficiency: <b>${efficiency.toFixed(2)}%</b><br>` +
       `Buildings owned: <b>${fmt(totalOwned)}</b><br>` +
       `Most-owned building: <b>${topBuilding?.name || 'None'}</b><br>` +
