@@ -829,12 +829,12 @@
 
 
   function stopTdMode() {
-    if (!tdMid.active) return;
-    tdMid.active = false;
     if (tdMid.resizeObs) tdMid.resizeObs.disconnect();
     tdMid.resizeObs = null;
     if (tdMid.overlay?.isConnected) tdMid.overlay.remove();
+    document.querySelectorAll(`#${ROOT_ID} .cc-td-overlay`).forEach((node) => node.remove());
     tdMid.overlay = null;
+    tdMid.active = false;
     syncGameFocus();
   }
 
@@ -1430,6 +1430,25 @@
   window.addEventListener('pointerup', () => { listPointerActive = false; renderList(); }, true);
   window.addEventListener('pointercancel', () => { listPointerActive = false; renderList(); }, true);
 
+  function bindPress(el, handler) {
+    let swallowedClick = false;
+    el.addEventListener('pointerdown', (event) => {
+      if (event.button !== undefined && event.button !== 0) return;
+      swallowedClick = true;
+      handler(event);
+    });
+    el.addEventListener('click', (event) => {
+      if (swallowedClick) {
+        swallowedClick = false;
+        return;
+      }
+      handler(event);
+    });
+    el.addEventListener('pointercancel', () => {
+      swallowedClick = false;
+    });
+  }
+
   function setTab(tab) {
     const now = Date.now();
     if (state.activeTab && state.tabTime[state.activeTab] !== undefined) {
@@ -1506,7 +1525,7 @@
       const btn = document.createElement('button');
       btn.className = `cc-card ${affordable ? 'can-buy' : ''}`;
       btn.innerHTML = policy.createHTML(`<b><span class="cc-img3d">${buildingIcon(b.name)}</span> ${b.name}</b> (${b.owned})<br>${state.buyMode === 'buy' ? `Buy ${tradeCount} — Cost: ${fmt(price)} | +${(b.cps * tradeCount).toLocaleString()}/s` : `Sell ${tradeCount} — Gain: ${fmt(price)} | -${(b.cps * tradeCount).toLocaleString()}/s`}`);
-      btn.onclick = () => {
+      bindPress(btn, () => {
         if (state.buyMode === 'buy') {
           if (tradeCount <= 0 || state.cookies < price) return;
           state.cookies -= price;
@@ -1525,7 +1544,7 @@
         markDirty();
         saveNow();
         renderAll();
-      };
+      });
       els.list.appendChild(btn);
     });
   }
@@ -1599,7 +1618,7 @@
         if (u.milkMult) effects.push(`x${u.milkMult} milk bonus`);
         const cat = upgradeCategory(u);
         btn.innerHTML = policy.createHTML(`<b><span class="cc-img3d">${cat.icon}</span> ${u.name}</b> <span style="color:#c6d6ff">[${cat.label}]</span><br>Cost: ${fmt(u.cost)} | ${effects.join(' + ')}<br><small style="color:#d9c39f">${reqText(u.req)}</small>`);
-        btn.onclick = () => {
+        bindPress(btn, () => {
           if (!canBuy) return;
           state.cookies -= u.cost;
           u.bought = true;
@@ -1615,7 +1634,7 @@
           markDirty();
           saveNow();
           renderAll();
-        };
+        });
         els.list.appendChild(btn);
       }
     });
@@ -1642,7 +1661,7 @@
     btn.style.marginTop = '10px';
     btn.textContent = gain > 0 ? `Ascend now (+${fmt(gain)} chips)` : 'Bake more cookies to ascend';
     if (gain > 0) btn.classList.add('can-buy');
-    btn.onclick = () => {
+    bindPress(btn, () => {
       if (gain <= 0) return;
       if (!confirm(`Ascend for ${gain} NEW prestige chips? This resets current run progress.`)) return;
       state.prestigeChips += gain;
@@ -1668,7 +1687,7 @@
       markDirty();
       saveNow();
       renderAll();
-    };
+    });
 
     const treeDefs = [
       { id: 'clickLegacy', name: 'Legacy Fingers', max: 8, base: 3, desc: '+25% permanent click power/level' },
@@ -1683,7 +1702,7 @@
       const nodeBtn = document.createElement('button');
       nodeBtn.className = `cc-card ${state.prestigeChips >= cost && level < node.max ? 'can-buy' : ''}`;
       nodeBtn.innerHTML = policy.createHTML(`<b>${node.name}</b> Lv.${level}/${node.max}<br>${node.desc}<br>Cost: ${fmt(cost)} chips`);
-      nodeBtn.onclick = () => {
+      bindPress(nodeBtn, () => {
         if (level >= node.max || state.prestigeChips < cost) return;
         state.prestigeChips -= cost;
         state.prestigeUpgrades[node.id] += 1;
@@ -1692,7 +1711,7 @@
         markDirty();
         saveNow();
         renderAll();
-      };
+      });
       treeWrap.appendChild(nodeBtn);
     });
 
@@ -1700,7 +1719,7 @@
     const unlockBtn = document.createElement('button');
     unlockBtn.className = `cc-card ${!state.prestigeUpgrades.unlockFutureTech && state.prestigeChips >= unlockCost ? 'can-buy' : ''}`;
     unlockBtn.innerHTML = policy.createHTML(`<b>Future Tech Permit</b><br>Unlock Chrono Reactor + Nebula Foundry.<br>Cost: ${fmt(unlockCost)} chips`);
-    unlockBtn.onclick = () => {
+    bindPress(unlockBtn, () => {
       if (state.prestigeUpgrades.unlockFutureTech || state.prestigeChips < unlockCost) return;
       state.prestigeChips -= unlockCost;
       state.prestigeUpgrades.unlockFutureTech = true;
@@ -1713,7 +1732,7 @@
       markDirty();
       saveNow();
       renderAll();
-    };
+    });
 
     els.list.append(card, btn, treeWrap, unlockBtn);
   }
@@ -1997,18 +2016,18 @@
     renderAll();
   };
 
-  els.tabShop.onclick = () => { stopTdMode(); setTab('shop'); };
-  els.tabUpgrades.onclick = () => { stopTdMode(); setTab('upgrades'); };
-  els.tabPrestige.onclick = () => { stopTdMode(); setTab('prestige'); };
-  els.tabAchievements.onclick = () => { stopTdMode(); setTab('achievements'); };
-  els.tabStats.onclick = () => { stopTdMode(); setTab('stats'); };
+  bindPress(els.tabShop, () => { stopTdMode(); setTab('shop'); });
+  bindPress(els.tabUpgrades, () => { stopTdMode(); setTab('upgrades'); });
+  bindPress(els.tabPrestige, () => { stopTdMode(); setTab('prestige'); });
+  bindPress(els.tabAchievements, () => { stopTdMode(); setTab('achievements'); });
+  bindPress(els.tabStats, () => { stopTdMode(); setTab('stats'); });
 
-  els.buy1.onclick = () => { state.buyAmount = 1; renderAll(); };
-  els.buy10.onclick = () => { state.buyAmount = 10; renderAll(); };
-  els.buy100.onclick = () => { state.buyAmount = 100; renderAll(); };
-  els.buyMax.onclick = () => { state.buyAmount = 'max'; renderAll(); };
-  els.modeBuy.onclick = () => { state.buyMode = 'buy'; renderAll(); };
-  els.modeSell.onclick = () => { state.buyMode = 'sell'; renderAll(); };
+  bindPress(els.buy1, () => { state.buyAmount = 1; renderAll(); });
+  bindPress(els.buy10, () => { state.buyAmount = 10; renderAll(); });
+  bindPress(els.buy100, () => { state.buyAmount = 100; renderAll(); });
+  bindPress(els.buyMax, () => { state.buyAmount = 'max'; renderAll(); });
+  bindPress(els.modeBuy, () => { state.buyMode = 'buy'; renderAll(); });
+  bindPress(els.modeSell, () => { state.buyMode = 'sell'; renderAll(); });
 
   function hardResetNow() {
     localStorage.removeItem(SAVE_KEY);
